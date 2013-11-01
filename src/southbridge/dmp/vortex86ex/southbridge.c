@@ -74,6 +74,7 @@ static const unsigned char irq_to_int_routing[16] = {
 #define SPI1_IRQ 10
 #define I2C0_IRQ 10
 #define MOTOR_IRQ 11
+#define PCIET_IRQ 4
 
 /* RT0-3 IRQs. */
 #define RT3_IRQ 3
@@ -91,6 +92,10 @@ static const unsigned char irq_to_int_routing[16] = {
 #define LPT_UE 1
 #define LPT_PDMAS 0
 #define LPT_DREQS 0
+
+/* internal I2C */
+#define I2C_BASE 0xfb00
+
 
 /* keyboard controller system flag timeout : 400 ms */
 #define KBC_TIMEOUT_SYS_FLAG 400
@@ -154,7 +159,7 @@ static int kbc_wait_system_flag(void)
 	if (!timeout) {
 		printk(BIOS_WARNING, "Keyboard controller system flag timeout\n");
 	}
-	return !!timeout;
+    return !!timeout;
 }
 
 static void pci_routing_fixup(struct device *dev)
@@ -435,7 +440,7 @@ static void i2c_init(struct device *dev)
 	u32 cfg = 0;
 	cfg |= 1 << 31;			// UE = enabled.
 	cfg |= (mapped_irq << 16);	// IIRT0.
-	cfg |= CONFIG_I2C_BASE;		// UIOA.
+	cfg |= I2C_BASE;		// UIOA.
 	pci_write_config32(dev, SB_REG_II2CCR, cfg);
 }
 
@@ -570,6 +575,9 @@ static void southbridge_init_func1(struct device *dev)
 	ext_int_routing2 |= irq_to_int_routing[SPI1_IRQ] << SPI1_IRQ_SHIFT;
 	ext_int_routing2 |= irq_to_int_routing[MOTOR_IRQ] << MOTOR_IRQ_SHIFT;
 	pci_write_config32(dev, SB1_REG_EXT_PIRQ_ROUTE2, ext_int_routing2);
+	/* Setup S/B function 1 PCI-e Target Config Reg 1(0x64). */
+	u32 pciet_cfg1 = irq_to_int_routing[PCIET_IRQ];
+	pci_write_config32(dev, SB1_REG_PCIET_CFG1, pciet_cfg1);
 
 	/* Assign in-chip PCI device IRQs. */
 	if (SPI1_IRQ || MOTOR_IRQ) {
